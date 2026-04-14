@@ -125,6 +125,9 @@ function summarizeApiError(error) {
   return message;
 }
 
+const isGitHubPages = window.location.hostname.endsWith("github.io");
+const hasConfiguredBackend = Boolean(API_BASE_URL);
+
 const SERIAL_NUMBER_PATTERN = /^[A-Z0-9]{7,}$/;
 
 function normalizeSerialNumber(value) {
@@ -609,7 +612,13 @@ function App() {
       </nav>
 
       {dbIssue && <p className="warning">{dbIssue}</p>}
-      {!dbIssue && <p className="warning">SQLite API connected{API_BASE_URL ? `: ${API_BASE_URL}` : ""}</p>}
+      {!dbIssue && hasConfiguredBackend && <p className="warning">SQLite API connected: {API_BASE_URL}</p>}
+      {!dbIssue && !hasConfiguredBackend && isGitHubPages && (
+        <p className="warning">GitHub Pages is frontend only. Set VITE_API_BASE_URL to your Render backend URL to use SQLite here.</p>
+      )}
+      {!dbIssue && !hasConfiguredBackend && !isGitHubPages && (
+        <p className="warning">SQLite API connected locally on the same server.</p>
+      )}
 
       {activeTab === "form" && (
         <form className="sheet-shell" onSubmit={onSubmit}>

@@ -105,6 +105,7 @@ npm run preview
 - GitHub Pages hosts only static frontend files.
 - SQLite requires a running Node server, so full app deployment should use a platform that supports Node processes and persistent disk.
 - Good options: Render, Railway, VPS, or internal company server.
+- If you want the GitHub Pages frontend to talk to SQLite, set the GitHub Actions secret `VITE_API_BASE_URL` to your live Render backend URL.
 
 ## 10) Deploy Full App on Render (Recommended)
 
@@ -116,6 +117,7 @@ Quick steps:
 2. In Render dashboard, create a **Blueprint** from this repository.
 3. Wait for deploy to finish.
 4. Open your Render URL and verify `/api/health`.
+5. Copy that Render URL into the GitHub Actions secret `VITE_API_BASE_URL` so the GitHub Pages frontend can connect to SQLite too.
 
 Full guide:
 
