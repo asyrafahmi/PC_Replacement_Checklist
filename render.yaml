@@ -10,7 +10,7 @@ services:
         value: 24
       - key: SQLITE_DB_DIR
         value: /var/data
-    disks:
-      - name: sqlite-data
-        mountPath: /var/data
-        sizeGB: 1
+    disk:
+      name: sqlite-data
+      mountPath: /var/data
+      sizeGB: 1
