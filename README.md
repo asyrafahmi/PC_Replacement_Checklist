@@ -82,6 +82,7 @@ Expected response:
 3. Click Submit Checklist.
 4. Open History tab to view saved records.
 5. Export records using Export to Excel.
+6. Open **Live View** tab to watch the latest submissions refresh automatically every 5 seconds.
 
 ## 7) Build Frontend
 
@@ -115,3 +116,4 @@ Full guide:
 
 - If API is unavailable, the app temporarily falls back to local browser storage to avoid data loss.
 - For team usage, run one shared backend server so everyone writes to the same SQLite file.
+- For a second monitor or tablet, keep the **Live View** tab open as your live status screen while you edit the form on another device.

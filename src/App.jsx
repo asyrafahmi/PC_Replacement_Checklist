@@ -355,6 +355,17 @@ function App() {
     fetchHistory();
   }, []);
 
+  useEffect(() => {
+    if (activeTab !== "live") return undefined;
+
+    fetchHistory();
+    const intervalId = setInterval(() => {
+      fetchHistory();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [activeTab]);
+
   function updateChecklist(section, index, field, value) {
     setForm((prev) => {
       const next = [...prev[section]];
@@ -550,6 +561,7 @@ function App() {
         <button className={activeTab === "form" ? "active" : ""} onClick={() => setActiveTab("form")}>Form</button>
         <button className={activeTab === "history" ? "active" : ""} onClick={() => setActiveTab("history")}>History</button>
         <button className={activeTab === "analysis" ? "active" : ""} onClick={() => setActiveTab("analysis")}>Analysis</button>
+        <button className={activeTab === "live" ? "active" : ""} onClick={() => setActiveTab("live")}>Live View</button>
       </nav>
 
       {dbIssue && <p className="warning">{dbIssue}</p>}
@@ -888,6 +900,81 @@ function App() {
                   <Bar dataKey="rate" fill="#0f766e" />
                 </BarChart>
               </ResponsiveContainer>
+            </article>
+          </div>
+        </section>
+      )}
+
+      {activeTab === "live" && (
+        <section className="card live-panel">
+          <div className="row-between">
+            <div>
+              <h2>Live View</h2>
+              <p className="section-caption">Auto-refreshes every 5 seconds so you can watch updates appear live.</p>
+            </div>
+            <button onClick={fetchHistory}>Refresh now</button>
+          </div>
+
+          <div className="live-grid">
+            <article className="live-card">
+              <h3>Connection Status</h3>
+              <p className="live-status-ok">SQLite API: {API_BASE_URL || "same-origin"}</p>
+              <p>
+                Backend health: <a href={API_BASE_URL ? `${API_BASE_URL}/api/health` : "/api/health"} target="_blank" rel="noreferrer">/api/health</a>
+              </p>
+              <p>Last refresh: {new Date().toLocaleTimeString()}</p>
+            </article>
+
+            <article className="live-card">
+              <h3>Latest Submission</h3>
+              {rows[0] ? (
+                <div className="live-summary">
+                  <p><strong>Branch:</strong> {toDisplayValue(rows[0], "branch", "department") || "-"}</p>
+                  <p><strong>Staff:</strong> {toDisplayValue(rows[0], "staff_name", "user_full_name") || "-"}</p>
+                  <p><strong>PC/NB No:</strong> {toDisplayValue(rows[0], "pc_nb_number", "new_serial_number") || "-"}</p>
+                  <p><strong>Status:</strong> {rows[0].status || "Pending"}</p>
+                  <p><strong>Saved at:</strong> {new Date(rows[0].created_at).toLocaleString()}</p>
+                </div>
+              ) : (
+                <p>No submission yet.</p>
+              )}
+            </article>
+
+            <article className="live-card live-wide">
+              <h3>Recent Records</h3>
+              {historyLoading ? (
+                <p>Refreshing live data...</p>
+              ) : (
+                <div className="live-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Branch</th>
+                        <th>Staff</th>
+                        <th>PC/NB No</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 5).map((row) => (
+                        <tr key={row.id}>
+                          <td>{toDisplayValue(row, "branch", "department") || "-"}</td>
+                          <td>{toDisplayValue(row, "staff_name", "user_full_name") || "-"}</td>
+                          <td>{toDisplayValue(row, "pc_nb_number", "new_serial_number") || "-"}</td>
+                          <td>{row.status || "Pending"}</td>
+                          <td>{new Date(row.created_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      {!rows.length && (
+                        <tr>
+                          <td colSpan={5}>Waiting for the first live update.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </article>
           </div>
         </section>
