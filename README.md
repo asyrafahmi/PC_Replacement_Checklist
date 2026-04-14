@@ -1,4 +1,4 @@
-# IT Checklist Web Form
+# Checklist PC / NB Replacement
 
 A web version of your Excel checklist with:
 - Form tab for checklist submission
