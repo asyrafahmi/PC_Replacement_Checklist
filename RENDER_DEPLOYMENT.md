@@ -23,13 +23,12 @@ git push
 
 Render will create:
 - 1 web service (`pc-replacement-checklist`)
-- 1 persistent disk mounted at `/var/data`
 
 ## 3) Environment Variables
 
 `render.yaml` already sets:
 - `NODE_VERSION=24`
-- `SQLITE_DB_DIR=/var/data`
+- `SQLITE_DB_DIR=/tmp`
 
 No additional env vars are required for SQLite mode.
 
@@ -46,9 +45,11 @@ After deployment is live:
 ## 5) SQLite Data Location on Render
 
 Database file path is:
-- `/var/data/checklist.db`
+- `/tmp/checklist.db` on free tier (ephemeral)
 
-Because this path is on a persistent disk, data survives redeploys and restarts.
+Important:
+- On free tier, `/tmp` is not persistent. Data may reset after redeploy/restart.
+- For persistent SQLite storage on Render, upgrade to a paid plan and attach a disk, then set `SQLITE_DB_DIR=/var/data`.
 
 ## 6) Notes
 
