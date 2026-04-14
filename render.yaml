@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: pc-replacement-checklist
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run server
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: SQLITE_DB_DIR
+        value: /var/data
+    disks:
+      - name: sqlite-data
+        mountPath: /var/data
+        sizeGB: 1

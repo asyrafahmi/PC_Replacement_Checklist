@@ -1,22 +1,25 @@
-# Checklist PC / NB Replacement
+# IT Checklist Web Form (SQLite Edition)
 
-A web version of your Excel checklist with:
-- Form tab for checklist submission
-- History tab with Excel export
-- Analysis tab with performance charts
-- Free online database integration using Supabase
+A web checklist app for PC/NB replacement with:
+- Spreadsheet-style form
+- Signature capture (draw or type)
+- Submission history
+- Excel export
+- Performance charts
+- SQLite database (local file)
 
-## Live Website
+## Live Links
 
-- Website: https://asyrafahmi.github.io/PC_Replacement_Checklist/
 - Source code: https://github.com/asyrafahmi/PC_Replacement_Checklist
+- Static frontend (GitHub Pages): https://asyrafahmi.github.io/PC_Replacement_Checklist/
 
-Anyone can open the website link from any computer or mobile browser.
+Important:
+- GitHub Pages can host the frontend only.
+- SQLite runs on the server side, so full database features require the Node API server running.
 
 ## 1) Prerequisites
 
 1. Install Node.js LTS (includes npm): https://nodejs.org
-2. Create a free Supabase account: https://supabase.com
 
 ## 2) Project Setup
 
@@ -33,67 +36,82 @@ npm install
 copy .env.example .env
 ```
 
-4. In `.env`, set:
+4. Optional: edit `.env` values:
 
 ```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_API_BASE_URL=http://localhost:3001
+PORT=3001
 ```
 
-## 3) Supabase Database Setup
+## 3) SQLite Setup
 
-1. In Supabase dashboard, open SQL Editor.
-2. Run all SQL in `supabase-schema.sql`.
-3. Go to Project Settings > API and copy:
-   - Project URL -> `VITE_SUPABASE_URL`
-   - anon public key -> `VITE_SUPABASE_ANON_KEY`
+No separate database server installation is required.
 
-## 4) Run App
+When you run the backend, it automatically creates:
+- database file: `server/data/checklist.db`
+- required table: `checklist_submissions`
+
+You can also review the schema in `sqlite-schema.sql`.
+
+## 4) Run App (Frontend + SQLite API)
 
 ```bash
 npm run dev
 ```
 
-Open the local URL shown by Vite (normally http://localhost:5173).
+This starts:
+- Vite frontend at `http://localhost:5173`
+- Express + SQLite API at `http://localhost:3001`
 
-## 5) How To Use
+## 5) API Quick Check
 
-1. Go to **Form** tab and fill checklist details.
-2. Click **Save Checklist**.
-3. Go to **History** tab to review records.
-4. Click **Export to Excel** to download full history.
-5. Go to **Analysis** tab to view charts:
-   - Status Distribution
-   - Submissions by Month
-   - Average Completion Rate
+Open this in browser:
 
-## 6) Build For Production
+`http://localhost:3001/api/health`
+
+Expected response:
+
+```json
+{"ok":true,"database":".../server/data/checklist.db"}
+```
+
+## 6) How To Use
+
+1. Open the form tab.
+2. Fill checklist details.
+3. Click Submit Checklist.
+4. Open History tab to view saved records.
+5. Export records using Export to Excel.
+
+## 7) Build Frontend
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## 7) Publish With GitHub Pages (Automatic)
+## 8) Deployment Notes
 
-This repository includes a GitHub Actions workflow that deploys the app to GitHub Pages on every push to `main`.
+- GitHub Pages hosts only static frontend files.
+- SQLite requires a running Node server, so full app deployment should use a platform that supports Node processes and persistent disk.
+- Good options: Render, Railway, VPS, or internal company server.
 
-1. Open repository **Settings > Pages**.
-2. Under **Build and deployment**, choose **Source: GitHub Actions**.
-3. Push any commit to `main`.
-4. Wait for the workflow **Deploy to GitHub Pages** to complete in the **Actions** tab.
-5. Open: https://asyrafahmi.github.io/PC_Replacement_Checklist/
+## 9) Deploy Full App on Render (Recommended)
 
-Optional for online Supabase mode:
+This repository now includes `render.yaml` for one-click Blueprint deploy.
 
-1. Open **Settings > Secrets and variables > Actions**.
-2. Add repository secrets:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+Quick steps:
 
-If secrets are not set, the website still opens and works in local/demo mode in each browser.
+1. Push latest code to GitHub.
+2. In Render dashboard, create a **Blueprint** from this repository.
+3. Wait for deploy to finish.
+4. Open your Render URL and verify `/api/health`.
+
+Full guide:
+
+- See `RENDER_DEPLOYMENT.md`
 
 ## Notes
 
-- This template allows public read/insert for fast internal rollout.
-- For stricter security, add authentication and restrict RLS policies.
+- If API is unavailable, the app temporarily falls back to local browser storage to avoid data loss.
+- For team usage, run one shared backend server so everyone writes to the same SQLite file.

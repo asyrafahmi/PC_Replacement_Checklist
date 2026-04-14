@@ -7,6 +7,9 @@ dist/
 # environment variables / secrets
 .env
 
+# local sqlite runtime files
+server/data/
+
 # logs
 npm-debug.log*
 yarn-debug.log*

@@ -13,7 +13,7 @@ import {
   YAxis
 } from "recharts";
 import { format } from "date-fns";
-import { hasSupabaseConfig, supabase } from "./lib/supabase";
+import { API_BASE_URL, createChecklistSubmission, fetchChecklistSubmissions } from "./lib/api";
 import { exportHistoryToExcel } from "./utils/exportExcel";
 
 const LOCAL_STORAGE_KEY = "checklist_submissions_local";
@@ -112,12 +112,6 @@ function saveLocalRows(rows) {
 
 function getLocalRowsSorted() {
   return loadLocalRows().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-}
-
-function isMissingTableError(error) {
-  if (!error) return false;
-  const message = String(error.message || "").toLowerCase();
-  return error.code === "PGRST205" || message.includes("schema cache") || message.includes("checklist_submissions");
 }
 
 function toDisplayValue(row, primary, fallback = "") {
@@ -345,31 +339,16 @@ function App() {
   async function fetchHistory() {
     setHistoryLoading(true);
 
-    if (!hasSupabaseConfig) {
+    try {
+      const data = await fetchChecklistSubmissions();
+      setDbIssue("");
+      setRows(data || []);
+    } catch (error) {
+      setDbIssue(`SQLite API issue: ${error.message}`);
       setRows(getLocalRowsSorted());
+    } finally {
       setHistoryLoading(false);
-      return;
     }
-
-    const { data, error } = await supabase.from("checklist_submissions").select("*").order("created_at", { ascending: false });
-
-    if (error && isMissingTableError(error)) {
-      setDbIssue("Supabase table is not created yet. Run supabase-schema.sql in SQL Editor.");
-      setRows(getLocalRowsSorted());
-      setHistoryLoading(false);
-      return;
-    }
-
-    if (error) {
-      setDbIssue(`Supabase connection issue: ${error.message}`);
-      setRows(getLocalRowsSorted());
-      setHistoryLoading(false);
-      return;
-    }
-
-    setDbIssue("");
-    setRows(data || []);
-    setHistoryLoading(false);
   }
 
   useEffect(() => {
@@ -483,42 +462,21 @@ function App() {
       user_name: form.staff_name
     };
 
-    if (!hasSupabaseConfig) {
+    try {
+      await createChecklistSubmission(payload);
+    } catch (error) {
       const localRow = {
         ...payload,
         id: Date.now(),
         created_at: new Date().toISOString()
       };
       saveLocalRows([localRow, ...loadLocalRows()]);
+      setDbIssue(`SQLite API issue: ${error.message}`);
       await fetchHistory();
       setLoading(false);
       resetForm();
       setActiveTab("history");
-      alert("Checklist saved in local demo mode.");
-      return;
-    }
-
-    const { error } = await supabase.from("checklist_submissions").insert(payload);
-
-    if (error && isMissingTableError(error)) {
-      setDbIssue("Supabase table is not created yet. Run supabase-schema.sql in SQL Editor.");
-      const localRow = {
-        ...payload,
-        id: Date.now(),
-        created_at: new Date().toISOString()
-      };
-      saveLocalRows([localRow, ...loadLocalRows()]);
-      await fetchHistory();
-      setLoading(false);
-      resetForm();
-      setActiveTab("history");
-      alert("Saved locally. Next step: run supabase-schema.sql in Supabase SQL Editor.");
-      return;
-    }
-
-    if (error) {
-      alert(`Failed to save: ${error.message}`);
-      setLoading(false);
+      alert("SQLite server is unavailable. Saved locally in this browser.");
       return;
     }
 
@@ -594,8 +552,8 @@ function App() {
         <button className={activeTab === "analysis" ? "active" : ""} onClick={() => setActiveTab("analysis")}>Analysis</button>
       </nav>
 
-      {(!hasSupabaseConfig || dbIssue) && <p className="warning">Demo mode active: add Supabase keys in .env to sync online database.</p>}
       {dbIssue && <p className="warning">{dbIssue}</p>}
+      {!dbIssue && <p className="warning">SQLite mode active via API: {API_BASE_URL}</p>}
 
       {activeTab === "form" && (
         <form className="sheet-shell" onSubmit={onSubmit}>
@@ -787,7 +745,7 @@ function App() {
                   </td>
                 </tr>
                 <tr>
-                  <th>Date n Time</th>
+                  <th>Date and Time</th>
                   <td>
                     <input
                       type="datetime-local"
@@ -819,7 +777,7 @@ function App() {
                   </td>
                 </tr>
                 <tr>
-                  <th>Date n Time</th>
+                  <th>Date and Time</th>
                   <td>
                     <input
                       type="datetime-local"
