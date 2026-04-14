@@ -11,7 +11,11 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
+    const cleanMessage = String(message || "")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    throw new Error(cleanMessage || `Request failed with status ${response.status}`);
   }
 
   return response.json();

@@ -118,6 +118,13 @@ function toDisplayValue(row, primary, fallback = "") {
   return row?.[primary] ?? row?.[fallback] ?? "";
 }
 
+function summarizeApiError(error) {
+  const message = String(error?.message || "").replace(/\s+/g, " ").trim();
+  if (!message) return "SQLite API unavailable.";
+  if (message.length > 120) return `${message.slice(0, 117)}...`;
+  return message;
+}
+
 const SERIAL_NUMBER_PATTERN = /^[A-Z0-9]{7,}$/;
 
 function normalizeSerialNumber(value) {
@@ -393,7 +400,7 @@ function App() {
       setDbIssue("");
       setRows(data || []);
     } catch (error) {
-      setDbIssue(`SQLite API issue: ${error.message}`);
+      setDbIssue(`SQLite API issue: ${summarizeApiError(error)}`);
       setRows(getLocalRowsSorted());
     } finally {
       setHistoryLoading(false);
@@ -520,7 +527,7 @@ function App() {
         created_at: new Date().toISOString()
       };
       saveLocalRows([localRow, ...loadLocalRows()]);
-      setDbIssue(`SQLite API issue: ${error.message}`);
+      setDbIssue(`SQLite API issue: ${summarizeApiError(error)}`);
       await fetchHistory();
       setLoading(false);
       resetForm();
@@ -602,7 +609,7 @@ function App() {
       </nav>
 
       {dbIssue && <p className="warning">{dbIssue}</p>}
-      {!dbIssue && <p className="warning">SQLite mode active via API: {API_BASE_URL}</p>}
+      {!dbIssue && <p className="warning">SQLite API connected{API_BASE_URL ? `: ${API_BASE_URL}` : ""}</p>}
 
       {activeTab === "form" && (
         <form className="sheet-shell" onSubmit={onSubmit}>
