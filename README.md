@@ -75,29 +75,38 @@ Expected response:
 {"ok":true,"database":".../server/data/checklist.db"}
 ```
 
-## 6) How To Use
+## 6) Seed Dummy Data
+
+To insert 10 completed sample submissions into SQLite:
+
+```bash
+npm run seed
+```
+
+Use `npm run seed -- --replace` if you want to clear the table first and rebuild the demo data.
+
+## 7) How To Use
 
 1. Open the form tab.
 2. Fill checklist details.
 3. Click Submit Checklist.
 4. Open History tab to view saved records.
 5. Export records using Export to Excel.
-6. Open **Live View** tab to watch the latest submissions refresh automatically every 5 seconds.
 
-## 7) Build Frontend
+## 8) Build Frontend
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## 8) Deployment Notes
+## 9) Deployment Notes
 
 - GitHub Pages hosts only static frontend files.
 - SQLite requires a running Node server, so full app deployment should use a platform that supports Node processes and persistent disk.
 - Good options: Render, Railway, VPS, or internal company server.
 
-## 9) Deploy Full App on Render (Recommended)
+## 10) Deploy Full App on Render (Recommended)
 
 This repository now includes `render.yaml` for one-click Blueprint deploy.
 
@@ -116,4 +125,3 @@ Full guide:
 
 - If API is unavailable, the app temporarily falls back to local browser storage to avoid data loss.
 - For team usage, run one shared backend server so everyone writes to the same SQLite file.
-- For a second monitor or tablet, keep the **Live View** tab open as your live status screen while you edit the form on another device.
