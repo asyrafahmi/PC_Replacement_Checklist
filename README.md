@@ -6,6 +6,13 @@ A web version of your Excel checklist with:
 - Analysis tab with performance charts
 - Free online database integration using Supabase
 
+## Live Website
+
+- Website: https://asyrafahmi.github.io/PC_Replacement_Checklist/
+- Source code: https://github.com/asyrafahmi/PC_Replacement_Checklist
+
+Anyone can open the website link from any computer or mobile browser.
+
 ## 1) Prerequisites
 
 1. Install Node.js LTS (includes npm): https://nodejs.org
@@ -66,6 +73,25 @@ Open the local URL shown by Vite (normally http://localhost:5173).
 npm run build
 npm run preview
 ```
+
+## 7) Publish With GitHub Pages (Automatic)
+
+This repository includes a GitHub Actions workflow that deploys the app to GitHub Pages on every push to `main`.
+
+1. Open repository **Settings > Pages**.
+2. Under **Build and deployment**, choose **Source: GitHub Actions**.
+3. Push any commit to `main`.
+4. Wait for the workflow **Deploy to GitHub Pages** to complete in the **Actions** tab.
+5. Open: https://asyrafahmi.github.io/PC_Replacement_Checklist/
+
+Optional for online Supabase mode:
+
+1. Open **Settings > Secrets and variables > Actions**.
+2. Add repository secrets:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+
+If secrets are not set, the website still opens and works in local/demo mode in each browser.
 
 ## Notes
 
