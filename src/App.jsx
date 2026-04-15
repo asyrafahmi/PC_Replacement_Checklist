@@ -41,6 +41,8 @@ const afterReplaceItems = [
 
 const statusOptions = ["Yes", "No", "N/A"];
 const COLORS = ["#0f766e", "#2563eb", "#f59e0b", "#dc2626"];
+const BNM_LOGO_URL = "https://th.bing.com/th/id/R.b11be793d442b1cc6747e3d108405b9f?rik=oRMwbh41JBfA5w&riu=http%3a%2f%2f2.bp.blogspot.com%2f-RK_LzXvIHQM%2fTk0WKEg2D0I%2fAAAAAAAAFbo%2fewSU6mnKJPI%2fs1600%2fBank%2bNegara%2bMalaysia%2b01.png&ehk=t%2bG3NsQLm38pU0JkiKO6FT%2fKcjZcQwc8zu%2btLmmSpKA%3d&risl=&pid=ImgRaw&r=0";
+const CTC_LOGO_URL = "https://logowik.com/content/uploads/images/ctc8767.jpg";
 
 function buildChecklist(items) {
   return items.map((item) => ({ ...item, status: "N/A", remark: "" }));
@@ -681,13 +683,19 @@ function App() {
     <div className="page">
       <header className="form-header">
         <div className="header-content">
-          <div>
+          <div className="header-brand left">
+            <img src={BNM_LOGO_URL} alt="Bank Negara Malaysia logo" className="brand-logo bnm-logo" />
+            <div className="brand-caption">Bank Negara Malaysia</div>
+          </div>
+
+          <div className="header-title-block">
             <h1>CHECKLIST FOR NEW PC / NB REPLACEMENT</h1>
             <p className="header-subtitle">Spreadsheet-style checklist for field use on desktop, tablet, and mobile</p>
           </div>
-          <div className="company-mark">
-            <div className="company-logo">CTC</div>
-            <div className="company-name">CTC Global Sdn Bhd</div>
+
+          <div className="header-brand right">
+            <img src={CTC_LOGO_URL} alt="CTC logo" className="brand-logo ctc-logo" />
+            <div className="brand-caption">CTC Global Sdn Bhd</div>
           </div>
         </div>
       </header>
