@@ -593,6 +593,16 @@ textarea {
   min-width: 520px;
 }
 
+.detail-signature-image {
+  display: block;
+  max-width: 240px;
+  max-height: 120px;
+  border: 1px solid var(--soft-line);
+  border-radius: 4px;
+  background: #fff;
+  object-fit: contain;
+}
+
 .detail-table th,
 .detail-table td {
   border: 1px solid var(--soft-line);

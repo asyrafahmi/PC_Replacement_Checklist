@@ -95,12 +95,31 @@ add column if not exists verification jsonb not null default '{}'::jsonb;
 
 alter table public.checklist_submissions enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant select, insert on public.checklist_submissions to anon, authenticated;
+
+drop policy if exists "Allow public read" on public.checklist_submissions;
 create policy "Allow public read"
 on public.checklist_submissions
 for select
 using (true);
 
+drop policy if exists "Allow public insert" on public.checklist_submissions;
 create policy "Allow public insert"
 on public.checklist_submissions
 for insert
 with check (true);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'checklist_submissions'
+  ) then
+    alter publication supabase_realtime add table public.checklist_submissions;
+  end if;
+end
+$$;

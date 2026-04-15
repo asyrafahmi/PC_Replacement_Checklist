@@ -13,10 +13,8 @@ import {
   YAxis
 } from "recharts";
 import { format } from "date-fns";
-import { API_BASE_URL, createChecklistSubmission, fetchChecklistSubmissions } from "./lib/api";
+import { hasSupabaseConfig, supabase } from "./lib/supabase";
 import { exportHistoryToExcel } from "./utils/exportExcel";
-
-const LOCAL_STORAGE_KEY = "checklist_submissions_local";
 
 const beforeReplaceItems = [
   { no: 1, name: "Backup user personal files/data", detail: "Desktop, My Documents, Scanner folder, etc" },
@@ -96,37 +94,22 @@ function createDefaultForm() {
   };
 }
 
-function loadLocalRows() {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    const rows = raw ? JSON.parse(raw) : [];
-    return Array.isArray(rows) ? rows : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalRows(rows) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rows));
-}
-
-function getLocalRowsSorted() {
-  return loadLocalRows().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-}
-
 function toDisplayValue(row, primary, fallback = "") {
   return row?.[primary] ?? row?.[fallback] ?? "";
 }
 
-function summarizeApiError(error) {
+function summarizeError(error) {
   const message = String(error?.message || "").replace(/\s+/g, " ").trim();
-  if (!message) return "SQLite API unavailable.";
+  if (!message) return "Database unavailable.";
   if (message.length > 120) return `${message.slice(0, 117)}...`;
   return message;
 }
 
-const isGitHubPages = window.location.hostname.endsWith("github.io");
-const hasConfiguredBackend = Boolean(API_BASE_URL);
+function isMissingTableError(error) {
+  if (!error) return false;
+  const message = String(error.message || "").toLowerCase();
+  return error.code === "PGRST205" || message.includes("checklist_submissions") || message.includes("schema cache");
+}
 
 const SERIAL_NUMBER_PATTERN = /^[A-Z0-9]{7,}$/;
 
@@ -138,10 +121,18 @@ function isValidSerialNumber(value) {
   return SERIAL_NUMBER_PATTERN.test(value);
 }
 
-function getSignaturePreview(signature) {
-  if (!signature) return "-";
-  if (signature.mode === "type") return signature.text || "-";
-  return signature.dataUrl ? "[drawn signature]" : "-";
+function SignatureDetail({ signature }) {
+  if (!signature) return <span>-</span>;
+
+  if (signature.mode === "type") {
+    return <span>{signature.text || "-"}</span>;
+  }
+
+  if (!signature.dataUrl) {
+    return <span>-</span>;
+  }
+
+  return <img src={signature.dataUrl} alt="Stored signature" className="detail-signature-image" />;
 }
 
 function DetailRow({ label, value }) {
@@ -398,13 +389,32 @@ function App() {
   async function fetchHistory() {
     setHistoryLoading(true);
 
+    if (!hasSupabaseConfig) {
+      setDbIssue("Supabase is not configured. This app is cloud-only. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+      setRows([]);
+      setHistoryLoading(false);
+      return;
+    }
+
     try {
-      const data = await fetchChecklistSubmissions();
+      const { data, error } = await supabase
+        .from("checklist_submissions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
       setDbIssue("");
       setRows(data || []);
     } catch (error) {
-      setDbIssue(`SQLite API issue: ${summarizeApiError(error)}`);
-      setRows(getLocalRowsSorted());
+      if (isMissingTableError(error)) {
+        setDbIssue("Supabase table missing. Run supabase-schema.sql in Supabase SQL Editor.");
+      } else {
+        setDbIssue(`Supabase issue: ${summarizeError(error)}`);
+      }
+      setRows([]);
     } finally {
       setHistoryLoading(false);
     }
@@ -412,6 +422,25 @@ function App() {
 
   useEffect(() => {
     fetchHistory();
+  }, []);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !supabase) return undefined;
+
+    const channel = supabase
+      .channel("checklist-submissions-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "checklist_submissions" },
+        () => {
+          fetchHistory();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   function updateChecklist(section, index, field, value) {
@@ -441,6 +470,62 @@ function App() {
         }
       }
     }));
+  }
+
+  function setVerificationMode(target, mode) {
+    setForm((prev) => {
+      const current = prev.verification[target] || {};
+      return {
+        ...prev,
+        verification: {
+          ...prev.verification,
+          [target]: {
+            ...current,
+            mode,
+            text: mode === "type" ? current.text || "" : "",
+            dataUrl: mode === "draw" ? current.dataUrl || "" : ""
+          }
+        }
+      };
+    });
+  }
+
+  function setSignatureValue(target, nextValue) {
+    setForm((prev) => {
+      const current = prev.verification[target] || {};
+      const isTypeMode = current.mode === "type";
+      return {
+        ...prev,
+        verification: {
+          ...prev.verification,
+          [target]: {
+            ...current,
+            text: isTypeMode ? nextValue : "",
+            dataUrl: isTypeMode ? "" : nextValue
+          }
+        }
+      };
+    });
+  }
+
+  function buildVerificationPayload(verification) {
+    const engineer = verification?.engineer || {};
+    const staff = verification?.staff || {};
+
+    const normalizeEntry = (entry) => {
+      const mode = entry.mode === "type" ? "type" : "draw";
+      return {
+        mode,
+        text: mode === "type" ? entry.text || "" : "",
+        dataUrl: mode === "draw" ? entry.dataUrl || "" : "",
+        datetime: entry.datetime || ""
+      };
+    };
+
+    return {
+      engineer: normalizeEntry(engineer),
+      staff: normalizeEntry(staff)
+    };
   }
 
   function resetForm() {
@@ -515,27 +600,29 @@ function App() {
       before_replace: form.before_replace,
       after_replace: form.after_replace,
       remark: form.remark,
-      verification: form.verification,
+      verification: buildVerificationPayload(form.verification),
       status: form.status,
       engineer_name: form.engineer_name,
       user_name: form.staff_name
     };
 
-    try {
-      await createChecklistSubmission(payload);
-    } catch (error) {
-      const localRow = {
-        ...payload,
-        id: Date.now(),
-        created_at: new Date().toISOString()
-      };
-      saveLocalRows([localRow, ...loadLocalRows()]);
-      setDbIssue(`SQLite API issue: ${summarizeApiError(error)}`);
-      await fetchHistory();
+    if (!hasSupabaseConfig) {
+      setDbIssue("Supabase is not configured. Cloud save is required for shared history.");
       setLoading(false);
-      resetForm();
-      setActiveTab("history");
-      alert("SQLite server is unavailable. Saved locally in this browser.");
+      alert("Cannot save. Configure Supabase so data is shared between you and your boss.");
+      return;
+    }
+
+    const { error } = await supabase.from("checklist_submissions").insert(payload);
+
+    if (error) {
+      if (isMissingTableError(error)) {
+        setDbIssue("Supabase table missing. Run supabase-schema.sql in Supabase SQL Editor.");
+      } else {
+        setDbIssue(`Supabase issue: ${summarizeError(error)}`);
+      }
+      setLoading(false);
+      alert(`Failed to save online: ${summarizeError(error)}`);
       return;
     }
 
@@ -612,13 +699,7 @@ function App() {
       </nav>
 
       {dbIssue && <p className="warning">{dbIssue}</p>}
-      {!dbIssue && hasConfiguredBackend && <p className="warning">SQLite API connected: {API_BASE_URL}</p>}
-      {!dbIssue && !hasConfiguredBackend && isGitHubPages && (
-        <p className="warning">GitHub Pages is frontend only. Set VITE_API_BASE_URL to your Render backend URL to use SQLite here.</p>
-      )}
-      {!dbIssue && !hasConfiguredBackend && !isGitHubPages && (
-        <p className="warning">SQLite API connected locally on the same server.</p>
-      )}
+      {!dbIssue && hasSupabaseConfig && <p className="warning">Supabase connected. Data is shared across laptops.</p>}
 
       {activeTab === "form" && (
         <form className="sheet-shell" onSubmit={onSubmit}>
@@ -798,14 +879,8 @@ function App() {
                       value={form.verification.engineer.mode === "type" ? form.verification.engineer.text : form.verification.engineer.dataUrl}
                       mode={form.verification.engineer.mode}
                       modeId="engineer"
-                      onModeChange={(target, mode) => updateVerification(target, "mode", mode)}
-                      onChange={(nextValue) => {
-                        if (form.verification.engineer.mode === "type") {
-                          updateVerification("engineer", "text", nextValue);
-                        } else {
-                          updateVerification("engineer", "dataUrl", nextValue);
-                        }
-                      }}
+                      onModeChange={setVerificationMode}
+                      onChange={(nextValue) => setSignatureValue("engineer", nextValue)}
                     />
                   </td>
                 </tr>
@@ -830,14 +905,8 @@ function App() {
                       value={form.verification.staff.mode === "type" ? form.verification.staff.text : form.verification.staff.dataUrl}
                       mode={form.verification.staff.mode}
                       modeId="staff"
-                      onModeChange={(target, mode) => updateVerification(target, "mode", mode)}
-                      onChange={(nextValue) => {
-                        if (form.verification.staff.mode === "type") {
-                          updateVerification("staff", "text", nextValue);
-                        } else {
-                          updateVerification("staff", "dataUrl", nextValue);
-                        }
-                      }}
+                      onModeChange={setVerificationMode}
+                      onChange={(nextValue) => setSignatureValue("staff", nextValue)}
                     />
                   </td>
                 </tr>
@@ -1019,10 +1088,16 @@ function App() {
                 <h4>Verification</h4>
                 <DetailRow label="CTC Engineer" value={selectedDetail.engineer_name} />
                 <DetailRow label="Engineer Date and Time" value={selectedDetail.verification?.engineer?.datetime} />
-                <DetailRow label="Engineer Signature" value={getSignaturePreview(selectedDetail.verification?.engineer)} />
+                <div className="detail-row">
+                  <span className="detail-label">Engineer Signature</span>
+                  <div className="detail-value"><SignatureDetail signature={selectedDetail.verification?.engineer} /></div>
+                </div>
                 <DetailRow label="Staff Name" value={selectedDetail.staff_name} />
                 <DetailRow label="Staff Date and Time" value={selectedDetail.verification?.staff?.datetime} />
-                <DetailRow label="Staff Signature" value={getSignaturePreview(selectedDetail.verification?.staff)} />
+                <div className="detail-row">
+                  <span className="detail-label">Staff Signature</span>
+                  <div className="detail-value"><SignatureDetail signature={selectedDetail.verification?.staff} /></div>
+                </div>
               </section>
             </div>
           </div>

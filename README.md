@@ -1,129 +1,90 @@
-# IT Checklist Web Form (SQLite Edition)
+# IT Checklist Web Form (Supabase Edition)
 
 A web checklist app for PC/NB replacement with:
 - Spreadsheet-style form
 - Signature capture (draw or type)
-- Submission history
+- Submission history with detail view
 - Excel export
 - Performance charts
-- SQLite database (local file)
+- Shared online database (Supabase PostgreSQL)
 
 ## Live Links
 
 - Source code: https://github.com/asyrafahmi/PC_Replacement_Checklist
-- Static frontend (GitHub Pages): https://asyrafahmi.github.io/PC_Replacement_Checklist/
+- Website: https://asyrafahmi.github.io/PC_Replacement_Checklist/
 
-Important:
-- GitHub Pages can host the frontend only.
-- SQLite runs on the server side, so full database features require the Node API server running.
+## Why This Setup
+
+- Supabase is a hosted PostgreSQL database with a free tier.
+- Data is online and shared, so users on any laptop can see the same history.
+- No local backend server is required for normal usage.
 
 ## 1) Prerequisites
 
-1. Install Node.js LTS (includes npm): https://nodejs.org
+1. Node.js LTS: https://nodejs.org
+2. Supabase account: https://supabase.com
 
 ## 2) Project Setup
 
-1. Open terminal in this project folder.
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Copy environment template:
+2. Copy env template:
 
 ```bash
 copy .env.example .env
 ```
 
-4. Optional: edit `.env` values:
+3. Set values in `.env`:
 
 ```env
-VITE_API_BASE_URL=http://localhost:3001
-PORT=3001
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## 3) SQLite Setup
+## 3) Supabase Database Setup
 
-No separate database server installation is required.
+1. Open your Supabase project.
+2. Go to SQL Editor.
+3. Run all SQL in `supabase-schema.sql`.
+4. From Supabase Project Settings > API, copy:
+	- Project URL
+	- anon public key
+5. Put those values into `.env`.
 
-When you run the backend, it automatically creates:
-- database file: `server/data/checklist.db`
-- required table: `checklist_submissions`
-
-You can also review the schema in `sqlite-schema.sql`.
-
-## 4) Run App (Frontend + SQLite API)
+## 4) Run Locally
 
 ```bash
 npm run dev
 ```
 
-This starts:
-- Vite frontend at `http://localhost:5173`
-- Express + SQLite API at `http://localhost:3001`
+Open the URL shown by Vite (usually http://localhost:5173).
 
-## 5) API Quick Check
+## 5) Deploy on GitHub Pages
 
-Open this in browser:
+This repo has a GitHub Actions workflow to deploy static frontend.
 
-`http://localhost:3001/api/health`
+Required GitHub repository secrets:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
-Expected response:
+Steps:
+1. Open repo Settings > Secrets and variables > Actions.
+2. Add both secrets above.
+3. Re-run workflow `Deploy to GitHub Pages`.
 
-```json
-{"ok":true,"database":".../server/data/checklist.db"}
-```
-
-## 6) Seed Dummy Data
-
-To insert 10 completed sample submissions into SQLite:
-
-```bash
-npm run seed
-```
-
-Use `npm run seed -- --replace` if you want to clear the table first and rebuild the demo data.
-
-## 7) How To Use
+## 6) How To Use
 
 1. Open the form tab.
 2. Fill checklist details.
 3. Click Submit Checklist.
-4. Open History tab to view saved records.
+4. Open History tab to view shared records from Supabase.
 5. Export records using Export to Excel.
-
-## 8) Build Frontend
-
-```bash
-npm run build
-npm run preview
-```
-
-## 9) Deployment Notes
-
-- GitHub Pages hosts only static frontend files.
-- SQLite requires a running Node server, so full app deployment should use a platform that supports Node processes and persistent disk.
-- Good options: Render, Railway, VPS, or internal company server.
-- If you want the GitHub Pages frontend to talk to SQLite, set the GitHub Actions secret `VITE_API_BASE_URL` to your live Render backend URL.
-
-## 10) Deploy Full App on Render (Recommended)
-
-This repository now includes `render.yaml` for one-click Blueprint deploy.
-
-Quick steps:
-
-1. Push latest code to GitHub.
-2. In Render dashboard, create a **Blueprint** from this repository.
-3. Wait for deploy to finish.
-4. Open your Render URL and verify `/api/health`.
-5. Copy that Render URL into the GitHub Actions secret `VITE_API_BASE_URL` so the GitHub Pages frontend can connect to SQLite too.
-
-Full guide:
-
-- See `RENDER_DEPLOYMENT.md`
 
 ## Notes
 
-- If API is unavailable, the app temporarily falls back to local browser storage to avoid data loss.
-- For team usage, run one shared backend server so everyone writes to the same SQLite file.
+- `.env` in your local machine is not uploaded (ignored by git).
+- Keep using anon key for frontend usage with proper Supabase RLS policies.
