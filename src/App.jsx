@@ -902,7 +902,17 @@ function App() {
               <h2>History</h2>
               <p className="section-caption">Saved checklist submissions</p>
             </div>
-            <button onClick={() => exportHistoryToExcel(rows)}>Export to Excel</button>
+            <button
+              onClick={async () => {
+                try {
+                  await exportHistoryToExcel(rows);
+                } catch (error) {
+                  alert(`Failed to export Excel: ${summarizeError(error)}`);
+                }
+              }}
+            >
+              Export to Excel
+            </button>
           </div>
 
           {historyLoading && <p>Loading history...</p>}
