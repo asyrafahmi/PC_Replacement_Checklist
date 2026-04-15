@@ -75,10 +75,8 @@ function createDefaultForm() {
     pc_nb_number: "",
     old_pc_serial_number: "",
     new_pc_serial_number: "",
-    new_pc_serial_number_confirm: "",
     old_monitor_serial_number: "",
     new_monitor_serial_number: "",
-    new_monitor_serial_number_confirm: "",
     old_hostname: "",
     new_hostname: "",
     old_ip_address: "",
@@ -542,33 +540,13 @@ function App() {
       return;
     }
 
-    if (form.new_pc_serial_number && form.new_pc_serial_number !== form.new_pc_serial_number_confirm) {
-      alert("PC serial number confirmation does not match.");
-      return;
-    }
-
     if (form.new_pc_serial_number && !isValidSerialNumber(form.new_pc_serial_number)) {
       alert("PC serial number must be alphanumeric and more than 6 characters.");
       return;
     }
 
-    if (form.new_pc_serial_number_confirm && !isValidSerialNumber(form.new_pc_serial_number_confirm)) {
-      alert("PC serial number confirmation must be alphanumeric and more than 6 characters.");
-      return;
-    }
-
-    if (form.new_monitor_serial_number && form.new_monitor_serial_number !== form.new_monitor_serial_number_confirm) {
-      alert("Monitor serial number confirmation does not match.");
-      return;
-    }
-
     if (form.new_monitor_serial_number && !isValidSerialNumber(form.new_monitor_serial_number)) {
       alert("Monitor serial number must be alphanumeric and more than 6 characters.");
-      return;
-    }
-
-    if (form.new_monitor_serial_number_confirm && !isValidSerialNumber(form.new_monitor_serial_number_confirm)) {
-      alert("Monitor serial number confirmation must be alphanumeric and more than 6 characters.");
       return;
     }
 
@@ -586,10 +564,8 @@ function App() {
       new_serial_number: form.pc_nb_number,
       old_pc_serial_number: form.old_pc_serial_number,
       new_pc_serial_number: form.new_pc_serial_number,
-      new_pc_serial_number_confirm: form.new_pc_serial_number_confirm,
       old_monitor_serial_number: form.old_monitor_serial_number,
       new_monitor_serial_number: form.new_monitor_serial_number,
-      new_monitor_serial_number_confirm: form.new_monitor_serial_number_confirm,
       old_hostname: form.old_hostname,
       new_hostname: form.new_hostname,
       old_ip_address: form.old_ip_address,
@@ -707,7 +683,6 @@ function App() {
       </nav>
 
       {dbIssue && <p className="warning">{dbIssue}</p>}
-      {!dbIssue && hasSupabaseConfig && <p className="warning">Supabase connected. Data is shared across laptops.</p>}
 
       {activeTab === "form" && (
         <form className="sheet-shell" onSubmit={onSubmit}>
@@ -779,15 +754,6 @@ function App() {
                         pattern="[A-Za-z0-9]{7,}"
                         title="Use alphanumeric characters only, at least 7 characters"
                       />
-                      <input
-                        value={form.new_pc_serial_number_confirm}
-                        onChange={(e) => updateSerialField("new_pc_serial_number_confirm", e.target.value)}
-                        placeholder="Re-enter serial number"
-                        inputMode="text"
-                        autoCapitalize="characters"
-                        pattern="[A-Za-z0-9]{7,}"
-                        title="Use alphanumeric characters only, at least 7 characters"
-                      />
                     </div>
                   </td>
                   <td><input value={form.pc_serial_remark} onChange={(e) => updateField("pc_serial_remark", e.target.value)} /></td>
@@ -801,15 +767,6 @@ function App() {
                         value={form.new_monitor_serial_number}
                         onChange={(e) => updateSerialField("new_monitor_serial_number", e.target.value)}
                         placeholder="Serial number"
-                        inputMode="text"
-                        autoCapitalize="characters"
-                        pattern="[A-Za-z0-9]{7,}"
-                        title="Use alphanumeric characters only, at least 7 characters"
-                      />
-                      <input
-                        value={form.new_monitor_serial_number_confirm}
-                        onChange={(e) => updateSerialField("new_monitor_serial_number_confirm", e.target.value)}
-                        placeholder="Re-enter serial number"
                         inputMode="text"
                         autoCapitalize="characters"
                         pattern="[A-Za-z0-9]{7,}"
@@ -1070,10 +1027,8 @@ function App() {
                 <h4>Serials & Configuration</h4>
                 <DetailRow label="Old PC Serial" value={selectedDetail.old_pc_serial_number} />
                 <DetailRow label="New PC Serial" value={selectedDetail.new_pc_serial_number} />
-                <DetailRow label="New PC Serial Confirm" value={selectedDetail.new_pc_serial_number_confirm} />
                 <DetailRow label="Old Monitor Serial" value={selectedDetail.old_monitor_serial_number} />
                 <DetailRow label="New Monitor Serial" value={selectedDetail.new_monitor_serial_number} />
-                <DetailRow label="New Monitor Serial Confirm" value={selectedDetail.new_monitor_serial_number_confirm} />
                 <DetailRow label="Old Hostname" value={selectedDetail.old_hostname} />
                 <DetailRow label="New Hostname" value={selectedDetail.new_hostname} />
                 <DetailRow label="Old IP Address" value={selectedDetail.old_ip_address} />
