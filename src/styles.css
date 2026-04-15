@@ -124,7 +124,8 @@ textarea {
 }
 
 .ctc-logo {
-  max-height: 54px;
+  max-height: 70px;
+  max-width: 220px;
 }
 
 .brand-caption {
