@@ -3,7 +3,7 @@ import { Workbook } from "exceljs";
 const BNM_LOGO_URL = new URL("../assets/bnm-logo.png", import.meta.url).href;
 const CTC_LOGO_URL = new URL("../assets/ctc-logo.jpg", import.meta.url).href;
 
-const TABLE_COLUMNS = [
+const FULL_COLUMNS = [
   ["id", "ID"],
   ["department", "Department"],
   ["user_full_name", "User Full Name"],
@@ -41,6 +41,8 @@ const TABLE_COLUMNS = [
   ["verification", "Verification (JSON)"]
 ];
 
+const STATUS_VALUES = ["Yes", "No", "N/A"];
+
 function toIsoDate(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -58,7 +60,77 @@ function safeJson(value, fallback) {
   }
 }
 
+function parseJsonValue(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+  return value;
+}
+
+function toDisplayDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString();
+}
+
+function toDisplayDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString();
+}
+
+function statusCounts(items) {
+  const counts = { Yes: 0, No: 0, "N/A": 0 };
+  if (!Array.isArray(items)) return counts;
+  items.forEach((item) => {
+    const status = item?.status;
+    if (STATUS_VALUES.includes(status)) counts[status] += 1;
+  });
+  return counts;
+}
+
+function statusSummary(items) {
+  const counts = statusCounts(items);
+  return `Yes: ${counts.Yes} | No: ${counts.No} | N/A: ${counts["N/A"]}`;
+}
+
+function completionRate(items) {
+  if (!Array.isArray(items) || !items.length) return "0%";
+  const yes = items.filter((item) => item?.status === "Yes").length;
+  return `${Math.round((yes / items.length) * 100)}%`;
+}
+
+function summarizeSoftwareFlags(flags) {
+  const source = parseJsonValue(flags, {});
+  const entries = Object.entries(source || {});
+  if (!entries.length) return "";
+  return entries
+    .map(([key, value]) => `${key}: ${value ? "Yes" : "No"}`)
+    .join("; ");
+}
+
+function summarizeVerification(verification) {
+  const parsed = parseJsonValue(verification, {});
+  const engineer = parsed?.engineer || {};
+  const staff = parsed?.staff || {};
+  const engineerText = `Engineer ${engineer.mode || ""}${engineer.datetime ? ` @ ${engineer.datetime}` : ""}`;
+  const staffText = `Staff ${staff.mode || ""}${staff.datetime ? ` @ ${staff.datetime}` : ""}`;
+  return `${engineerText}; ${staffText}`.trim();
+}
+
 function normalizeRow(row) {
+  const parsedBefore = parseJsonValue(row.before_replace, []);
+  const parsedAfter = parseJsonValue(row.after_replace, []);
+  const parsedVerification = parseJsonValue(row.verification, {});
+  const parsedSoftwareFlags = parseJsonValue(row.software_flags, {});
+
   return {
     ...row,
     branch: row.branch || row.department || "",
@@ -71,11 +143,11 @@ function normalizeRow(row) {
     new_serial_number: row.new_serial_number || row.pc_nb_number || "",
     new_ip_address: row.new_ip_address || row.ip_address || "",
     ip_address: row.ip_address || row.new_ip_address || "",
-    software_flags: row.software_flags ?? {},
+    software_flags: parsedSoftwareFlags,
     additional_software: row.additional_software || "",
-    before_replace: Array.isArray(row.before_replace) ? row.before_replace : [],
-    after_replace: Array.isArray(row.after_replace) ? row.after_replace : [],
-    verification: row.verification || {},
+    before_replace: Array.isArray(parsedBefore) ? parsedBefore : [],
+    after_replace: Array.isArray(parsedAfter) ? parsedAfter : [],
+    verification: parsedVerification || {},
     created_at: toIsoDate(row.created_at)
   };
 }
@@ -124,6 +196,14 @@ function autoSizeColumns(worksheet, minWidth = 14, maxWidth = 48) {
     });
     column.width = widest;
   });
+}
+
+function setCellBackground(cell, color) {
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: color }
+  };
 }
 
 function blobToBase64(blob) {
@@ -183,47 +263,185 @@ function triggerDownload(buffer, fileName) {
   URL.revokeObjectURL(url);
 }
 
-async function addRawDataSheet(workbook, normalizedRows) {
-  const worksheet = workbook.addWorksheet("Checklist Data", {
-    properties: { defaultRowHeight: 20 },
-    views: [{ state: "frozen", ySplit: 5 }]
+async function addSummarySheet(workbook, normalizedRows) {
+  const worksheet = workbook.addWorksheet("Summary", {
+    properties: { defaultRowHeight: 22 },
+    views: [{ state: "frozen", ySplit: 4 }]
   });
 
-  const totalColumns = TABLE_COLUMNS.length;
-  worksheet.mergeCells(3, 1, 3, totalColumns);
-  const titleCell = worksheet.getCell(3, 1);
-  titleCell.value = "CHECKLIST SUBMISSIONS - FULL EXPORT";
-  titleCell.font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
-  titleCell.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF0F766E" }
+  worksheet.columns = [
+    { key: "label", width: 28 },
+    { key: "value", width: 24 },
+    { key: "label2", width: 28 },
+    { key: "value2", width: 24 },
+    { key: "label3", width: 28 },
+    { key: "value3", width: 24 }
+  ];
+
+  worksheet.mergeCells("A1:F1");
+  const title = worksheet.getCell("A1");
+  title.value = "CHECKLIST SUBMISSIONS REPORT";
+  title.font = { bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+  title.alignment = { horizontal: "center", vertical: "middle" };
+  setCellBackground(title, "FF0F766E");
+  worksheet.getRow(1).height = 30;
+
+  worksheet.mergeCells("A2:F2");
+  const generated = worksheet.getCell("A2");
+  generated.value = `Generated: ${new Date().toLocaleString()}`;
+  generated.font = { italic: true, color: { argb: "FF334155" } };
+
+  const total = normalizedRows.length;
+  const done = normalizedRows.filter((row) => String(row.status || "").toLowerCase() === "done").length;
+  const pending = normalizedRows.filter((row) => String(row.status || "").toLowerCase() !== "done").length;
+  const beforeAvg = total
+    ? Math.round(normalizedRows.reduce((sum, row) => sum + parseInt(completionRate(row.before_replace), 10), 0) / total)
+    : 0;
+  const afterAvg = total
+    ? Math.round(normalizedRows.reduce((sum, row) => sum + parseInt(completionRate(row.after_replace), 10), 0) / total)
+    : 0;
+
+  const topBranches = Object.entries(
+    normalizedRows.reduce((acc, row) => {
+      const key = row.branch || "Unknown";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {})
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, count]) => `${name} (${count})`)
+    .join(", ");
+
+  const stats = [
+    ["Total Submissions", total, "Done", done, "Pending", pending],
+    ["Avg Before Completion", `${beforeAvg}%`, "Avg After Completion", `${afterAvg}%`, "Top Branches", topBranches || "-"]
+  ];
+
+  stats.forEach((rowValues, idx) => {
+    const row = worksheet.getRow(4 + idx);
+    row.values = rowValues;
+    row.eachCell((cell, cellIndex) => {
+      if (cellIndex % 2 === 1) {
+        cell.font = { bold: true, color: { argb: "FF1F2937" } };
+      }
+      cell.alignment = { vertical: "middle", wrapText: true };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE5E7EB" } },
+        left: { style: "thin", color: { argb: "FFE5E7EB" } },
+        bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+        right: { style: "thin", color: { argb: "FFE5E7EB" } }
+      };
+      if (idx === 0) setCellBackground(cell, "FFF1F5F9");
+    });
+  });
+
+  await addLogos(worksheet, workbook, 6);
+}
+
+function addReadableDataSheet(workbook, normalizedRows) {
+  const worksheet = workbook.addWorksheet("Readable Data", {
+    properties: { defaultRowHeight: 20 },
+    views: [{ state: "frozen", ySplit: 2 }]
+  });
+
+  worksheet.columns = [
+    { header: "ID", key: "id", width: 8 },
+    { header: "Branch", key: "branch", width: 18 },
+    { header: "Date", key: "date", width: 14 },
+    { header: "Staff", key: "staff", width: 20 },
+    { header: "Staff ID", key: "staffId", width: 14 },
+    { header: "PC/NB", key: "pcNb", width: 14 },
+    { header: "Status", key: "status", width: 12 },
+    { header: "Old Hostname", key: "oldHost", width: 18 },
+    { header: "New Hostname", key: "newHost", width: 18 },
+    { header: "Old IP", key: "oldIp", width: 14 },
+    { header: "New IP", key: "newIp", width: 14 },
+    { header: "Before Summary", key: "beforeSummary", width: 26 },
+    { header: "After Summary", key: "afterSummary", width: 26 },
+    { header: "Before Completion", key: "beforeRate", width: 16 },
+    { header: "After Completion", key: "afterRate", width: 16 },
+    { header: "Software Flags", key: "software", width: 36 },
+    { header: "Additional Software", key: "additional", width: 26 },
+    { header: "Verification", key: "verification", width: 34 },
+    { header: "Engineer", key: "engineer", width: 18 },
+    { header: "Created At", key: "createdAt", width: 22 },
+    { header: "Remark", key: "remark", width: 40 }
+  ];
+
+  styleHeaderRow(worksheet.getRow(1), "FF1E3A8A");
+
+  normalizedRows.forEach((row, rowIndex) => {
+    const dataRow = worksheet.addRow({
+      id: row.id,
+      branch: row.branch,
+      date: toDisplayDate(row.date || row.installation_date),
+      staff: row.staff_name || row.user_full_name,
+      staffId: row.staff_id_number,
+      pcNb: row.pc_nb_number || row.new_serial_number,
+      status: row.status,
+      oldHost: row.old_hostname,
+      newHost: row.new_hostname,
+      oldIp: row.old_ip_address,
+      newIp: row.new_ip_address || row.ip_address,
+      beforeSummary: statusSummary(row.before_replace),
+      afterSummary: statusSummary(row.after_replace),
+      beforeRate: completionRate(row.before_replace),
+      afterRate: completionRate(row.after_replace),
+      software: summarizeSoftwareFlags(row.software_flags),
+      additional: row.additional_software,
+      verification: summarizeVerification(row.verification),
+      engineer: row.engineer_name,
+      createdAt: toDisplayDateTime(row.created_at),
+      remark: row.remark
+    });
+    styleDataRow(dataRow, rowIndex % 2 === 0);
+  });
+
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: worksheet.columns.length }
   };
+
+  autoSizeColumns(worksheet, 10, 48);
+}
+
+async function addFullDataSheet(workbook, normalizedRows) {
+  const worksheet = workbook.addWorksheet("Checklist Data", {
+    properties: { defaultRowHeight: 20 },
+    views: [{ state: "frozen", ySplit: 4 }]
+  });
+
+  worksheet.columns = FULL_COLUMNS.map(([key]) => ({ key, width: 18 }));
+  const totalColumns = FULL_COLUMNS.length;
+
+  worksheet.mergeCells(1, 1, 1, totalColumns);
+  const titleCell = worksheet.getCell(1, 1);
+  titleCell.value = "CHECKLIST SUBMISSIONS - FULL DATA";
+  titleCell.font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  worksheet.getRow(3).height = 28;
+  setCellBackground(titleCell, "FF0F766E");
 
-  const subtitle = worksheet.getCell(4, 1);
-  subtitle.value = `Generated: ${new Date().toLocaleString()}`;
-  subtitle.font = { italic: true, color: { argb: "FF334155" } };
+  worksheet.mergeCells(2, 1, 2, totalColumns);
+  worksheet.getCell(2, 1).value = `Generated: ${new Date().toLocaleString()}`;
+  worksheet.getCell(2, 1).font = { italic: true, color: { argb: "FF334155" } };
 
-  worksheet.columns = TABLE_COLUMNS.map(([, header]) => ({ header, key: header, width: 18 }));
-
-  const headerRowIndex = 5;
+  const headerRowIndex = 4;
   const headerRow = worksheet.getRow(headerRowIndex);
-  TABLE_COLUMNS.forEach(([, header], idx) => {
+  FULL_COLUMNS.forEach(([, header], idx) => {
     headerRow.getCell(idx + 1).value = header;
   });
   styleHeaderRow(headerRow, "FF1E3A8A");
-  headerRow.height = 24;
 
   normalizedRows.forEach((row, rowIndex) => {
-    const values = TABLE_COLUMNS.map(([key]) => {
+    const values = FULL_COLUMNS.map(([key]) => {
       const rawValue = row[key];
       if (key === "before_replace" || key === "after_replace" || key === "verification" || key === "software_flags") {
         return safeJson(rawValue, key === "software_flags" ? {} : []);
       }
       return rawValue == null ? "" : rawValue;
     });
+
     const dataRow = worksheet.addRow(values);
     styleDataRow(dataRow, rowIndex % 2 === 0);
   });
@@ -323,12 +541,12 @@ function addVerificationSheet(workbook, normalizedRows) {
     { header: "Engineer Mode", key: "engineer_mode", width: 14 },
     { header: "Engineer Text", key: "engineer_text", width: 30 },
     { header: "Engineer DateTime", key: "engineer_datetime", width: 24 },
-    { header: "Engineer Drawn Data URL", key: "engineer_data_url", width: 42 },
+    { header: "Engineer Signature Captured", key: "engineer_has_drawing", width: 22 },
     { header: "Staff Mode", key: "staff_mode", width: 14 },
     { header: "Staff Text", key: "staff_text", width: 30 },
     { header: "Staff DateTime", key: "staff_datetime", width: 24 },
-    { header: "Staff Drawn Data URL", key: "staff_data_url", width: 42 },
-    { header: "Verification JSON", key: "verification_json", width: 48 }
+    { header: "Staff Signature Captured", key: "staff_has_drawing", width: 22 },
+    { header: "Verification JSON", key: "verification_json", width: 42 }
   ];
 
   const title = worksheet.getCell(1, 1);
@@ -356,11 +574,11 @@ function addVerificationSheet(workbook, normalizedRows) {
       engineer_mode: engineer.mode || "",
       engineer_text: engineer.text || "",
       engineer_datetime: engineer.datetime || "",
-      engineer_data_url: engineer.dataUrl || "",
+      engineer_has_drawing: engineer.dataUrl ? "Yes" : "No",
       staff_mode: staff.mode || "",
       staff_text: staff.text || "",
       staff_datetime: staff.datetime || "",
-      staff_data_url: staff.dataUrl || "",
+      staff_has_drawing: staff.dataUrl ? "Yes" : "No",
       verification_json: safeJson(row.verification, {})
     });
 
@@ -370,6 +588,39 @@ function addVerificationSheet(workbook, normalizedRows) {
   worksheet.autoFilter = {
     from: { row: 2, column: 1 },
     to: { row: 2, column: 13 }
+  };
+}
+
+function addRawJsonSheet(workbook, normalizedRows) {
+  const worksheet = workbook.addWorksheet("Raw JSON", {
+    properties: { defaultRowHeight: 20 },
+    views: [{ state: "frozen", ySplit: 1 }]
+  });
+
+  worksheet.columns = [
+    { header: "ID", key: "id", width: 10 },
+    { header: "Software Flags JSON", key: "software_flags_json", width: 36 },
+    { header: "Before Replace JSON", key: "before_replace_json", width: 60 },
+    { header: "After Replace JSON", key: "after_replace_json", width: 60 },
+    { header: "Verification JSON", key: "verification_json", width: 60 }
+  ];
+
+  styleHeaderRow(worksheet.getRow(1), "FF334155");
+
+  normalizedRows.forEach((row, index) => {
+    const dataRow = worksheet.addRow({
+      id: row.id,
+      software_flags_json: safeJson(row.software_flags, {}),
+      before_replace_json: safeJson(row.before_replace, []),
+      after_replace_json: safeJson(row.after_replace, []),
+      verification_json: safeJson(row.verification, {})
+    });
+    styleDataRow(dataRow, index % 2 === 0);
+  });
+
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: 5 }
   };
 }
 
@@ -384,10 +635,13 @@ export async function exportHistoryToExcel(rows) {
   workbook.creator = "IT Checklist Web Form";
   workbook.created = new Date();
 
-  await addRawDataSheet(workbook, normalizedRows);
+  await addSummarySheet(workbook, normalizedRows);
+  addReadableDataSheet(workbook, normalizedRows);
+  await addFullDataSheet(workbook, normalizedRows);
   addChecklistSheet(workbook, normalizedRows, "Before Replace", "before_replace", "FF0F766E");
   addChecklistSheet(workbook, normalizedRows, "After Replace", "after_replace", "FF2563EB");
   addVerificationSheet(workbook, normalizedRows);
+  addRawJsonSheet(workbook, normalizedRows);
 
   const buffer = await workbook.xlsx.writeBuffer();
   triggerDownload(buffer, "it-checklist-history-full.xlsx");
