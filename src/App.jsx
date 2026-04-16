@@ -21,7 +21,6 @@ import { format } from "date-fns";
 import { hasSupabaseConfig, supabase } from "./lib/supabase";
 import { exportHistoryToExcel } from "./utils/exportExcel";
 import { exportHistoryToPdf } from "./utils/exportPdf";
-import { getDummyHistoryRows } from "./utils/dummyData";
 
 const beforeReplaceItems = [
   { no: 1, name: "Backup user personal files/data", detail: "Desktop, My Documents, Scanner folder, etc" },
@@ -427,7 +426,6 @@ function App() {
   const [exportEndDate, setExportEndDate] = useState("");
   const [analysisWindow, setAnalysisWindow] = useState("all");
   const [form, setForm] = useState(createDefaultForm);
-  const dummyRows = useMemo(() => getDummyHistoryRows(120), []);
 
   async function fetchHistory() {
     setHistoryLoading(true);
@@ -665,10 +663,8 @@ function App() {
   }
 
   const analysisRows = useMemo(() => {
-    if (rows.length >= 40) return rows;
-    const needed = Math.max(70 - rows.length, 0);
-    return [...rows, ...dummyRows.slice(0, needed)];
-  }, [rows, dummyRows]);
+    return rows;
+  }, [rows]);
 
   const filteredAnalysisRows = useMemo(
     () => analysisRows.filter((row) => isWithinMonths(row, analysisWindow)),
@@ -1180,8 +1176,7 @@ function App() {
               <button type="button" className={analysisWindow === "all" ? "analysis-chip active" : "analysis-chip"} onClick={() => setAnalysisWindow("all")}>All Data</button>
             </div>
             <p className="section-caption">
-              Showing {filteredAnalysisRows.length} record(s) for analysis.
-              {rows.length < 40 ? " Demo records are included to enrich trend visibility." : ""}
+              Showing {filteredAnalysisRows.length} of {rows.length} history record(s) in the selected analysis window.
             </p>
           </div>
 
