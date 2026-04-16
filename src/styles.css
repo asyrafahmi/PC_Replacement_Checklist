@@ -521,6 +521,28 @@ textarea {
   gap: 12px;
 }
 
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-actions button {
+  min-width: 132px;
+}
+
+.export-excel-btn {
+  background: linear-gradient(180deg, #e4f5e8 0%, #cbead2 100%);
+  border-color: #2f7a3d;
+  color: #1c5327;
+}
+
+.export-pdf-btn {
+  background: linear-gradient(180deg, #fde8e8 0%, #f8d2d2 100%);
+  border-color: #9a2f2f;
+  color: #772020;
+}
+
 .section-caption {
   margin: 4px 0 0;
   font-size: 12px;
@@ -818,6 +840,18 @@ textarea {
   .detail-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .row-between {
+    flex-wrap: wrap;
+  }
+
+  .history-actions {
+    width: 100%;
+  }
+
+  .history-actions button {
+    flex: 1 1 150px;
   }
 
   .detail-modal {

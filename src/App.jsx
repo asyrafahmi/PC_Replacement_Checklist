@@ -15,6 +15,7 @@ import {
 import { format } from "date-fns";
 import { hasSupabaseConfig, supabase } from "./lib/supabase";
 import { exportHistoryToExcel } from "./utils/exportExcel";
+import { exportHistoryToPdf } from "./utils/exportPdf";
 
 const beforeReplaceItems = [
   { no: 1, name: "Backup user personal files/data", detail: "Desktop, My Documents, Scanner folder, etc" },
@@ -932,7 +933,10 @@ function App() {
               <h2>History</h2>
               <p className="section-caption">Saved checklist submissions</p>
             </div>
-            <button onClick={() => exportHistoryToExcel(rows)}>Export to Excel</button>
+            <div className="history-actions">
+              <button type="button" className="export-excel-btn" onClick={() => exportHistoryToExcel(rows)}>Export to Excel</button>
+              <button type="button" className="export-pdf-btn" onClick={() => exportHistoryToPdf(rows)}>Export to PDF</button>
+            </div>
           </div>
 
           {historyLoading && <p>Loading history...</p>}
