@@ -122,6 +122,14 @@ function isValidSerialNumber(value) {
   return SERIAL_NUMBER_PATTERN.test(value);
 }
 
+function getRowExportDate(row) {
+  const raw = row.created_at || row.date || row.installation_date;
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
 function SignatureDetail({ signature }) {
   if (!signature) return <span>-</span>;
 
@@ -385,6 +393,8 @@ function App() {
   const [rows, setRows] = useState([]);
   const [dbIssue, setDbIssue] = useState("");
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
   const [form, setForm] = useState(createDefaultForm);
 
   async function fetchHistory() {
@@ -666,6 +676,50 @@ function App() {
     ];
   }, [rows]);
 
+  const hasExportDateRange = Boolean(exportStartDate && exportEndDate);
+  const exportDateRangeInvalid = hasExportDateRange && exportStartDate > exportEndDate;
+
+  const exportRows = useMemo(() => {
+    if (!hasExportDateRange || exportDateRangeInvalid) return [];
+
+    const start = new Date(`${exportStartDate}T00:00:00`);
+    const end = new Date(`${exportEndDate}T23:59:59.999`);
+
+    return rows.filter((row) => {
+      const rowDate = getRowExportDate(row);
+      if (!rowDate) return false;
+      return rowDate >= start && rowDate <= end;
+    });
+  }, [rows, hasExportDateRange, exportDateRangeInvalid, exportStartDate, exportEndDate]);
+
+  function handleExportExcel() {
+    if (!hasExportDateRange) {
+      alert("Please select export start date and end date first.");
+      return;
+    }
+
+    if (exportDateRangeInvalid) {
+      alert("Export start date cannot be later than end date.");
+      return;
+    }
+
+    exportHistoryToExcel(exportRows);
+  }
+
+  function handleExportPdf() {
+    if (!hasExportDateRange) {
+      alert("Please select export start date and end date first.");
+      return;
+    }
+
+    if (exportDateRangeInvalid) {
+      alert("Export start date cannot be later than end date.");
+      return;
+    }
+
+    exportHistoryToPdf(exportRows);
+  }
+
   return (
     <div className="page">
       <header className="form-header">
@@ -932,12 +986,55 @@ function App() {
             <div>
               <h2>History</h2>
               <p className="section-caption">Saved checklist submissions</p>
+              <p className="section-caption export-hint">Select date range first. Export uses only rows within that range.</p>
             </div>
             <div className="history-actions">
-              <button type="button" className="export-excel-btn" onClick={() => exportHistoryToExcel(rows)}>Export to Excel</button>
-              <button type="button" className="export-pdf-btn" onClick={() => exportHistoryToPdf(rows)}>Export to PDF</button>
+              <label className="date-filter-field">
+                <span>From</span>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  max={exportEndDate || undefined}
+                  onChange={(event) => setExportStartDate(event.target.value)}
+                />
+              </label>
+              <label className="date-filter-field">
+                <span>To</span>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  min={exportStartDate || undefined}
+                  onChange={(event) => setExportEndDate(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="export-excel-btn"
+                onClick={handleExportExcel}
+                disabled={!hasExportDateRange || exportDateRangeInvalid}
+              >
+                Export to Excel
+              </button>
+              <button
+                type="button"
+                className="export-pdf-btn"
+                onClick={handleExportPdf}
+                disabled={!hasExportDateRange || exportDateRangeInvalid}
+              >
+                Export to PDF
+              </button>
             </div>
           </div>
+
+          {hasExportDateRange && !exportDateRangeInvalid && (
+            <p className="section-caption export-count-caption">
+              {exportRows.length} record(s) in selected export range.
+            </p>
+          )}
+
+          {exportDateRangeInvalid && (
+            <p className="warning">Export start date cannot be later than end date.</p>
+          )}
 
           {historyLoading && <p>Loading history...</p>}
 

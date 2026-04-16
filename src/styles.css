@@ -525,10 +525,44 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: flex-end;
 }
 
 .history-actions button {
   min-width: 132px;
+}
+
+.date-filter-field {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+  font-size: 12px;
+  color: #1e3a5f;
+  font-weight: 700;
+}
+
+.date-filter-field input {
+  border: 1px solid #a6b8cf;
+  background: #ffffff;
+  color: #102845;
+  padding: 8px;
+  min-height: 36px;
+}
+
+.date-filter-field input:focus {
+  border-color: #1e5ea1;
+  box-shadow: 0 0 0 2px rgba(30, 94, 161, 0.15);
+}
+
+.export-hint {
+  margin-top: 6px;
+  color: #36526f;
+}
+
+.export-count-caption {
+  margin-top: 10px;
+  font-weight: 700;
+  color: #1f4e78;
 }
 
 .export-excel-btn {
@@ -848,6 +882,12 @@ textarea {
 
   .history-actions {
     width: 100%;
+    gap: 10px;
+  }
+
+  .date-filter-field {
+    min-width: 0;
+    flex: 1 1 calc(50% - 8px);
   }
 
   .history-actions button {
