@@ -331,11 +331,15 @@ textarea {
   white-space: nowrap;
 }
 
-.status-option input {
+.sheet-table td .status-option input[type="radio"] {
   appearance: none;
+  -webkit-appearance: none;
   width: 16px;
+  min-width: 16px;
   height: 16px;
+  min-height: 16px;
   margin: 0;
+  padding: 0;
   border: 2px solid #7c8798;
   border-radius: 50%;
   background: #fff;
@@ -344,7 +348,7 @@ textarea {
   place-items: center;
 }
 
-.status-option input::before {
+.sheet-table td .status-option input[type="radio"]::before {
   content: "";
   width: 7px;
   height: 7px;
@@ -354,15 +358,15 @@ textarea {
   background: #0b7de2;
 }
 
-.status-option input:checked {
+.sheet-table td .status-option input[type="radio"]:checked {
   border-color: #0b7de2;
 }
 
-.status-option input:checked::before {
+.sheet-table td .status-option input[type="radio"]:checked::before {
   transform: scale(1);
 }
 
-.status-option input:focus-visible {
+.sheet-table td .status-option input[type="radio"]:focus-visible {
   outline: 2px solid #0b7de2;
   outline-offset: 2px;
 }
@@ -777,12 +781,14 @@ textarea {
     min-width: 62px;
   }
 
-  .status-option input {
+  .sheet-table td .status-option input[type="radio"] {
     width: 18px;
+    min-width: 18px;
     height: 18px;
+    min-height: 18px;
   }
 
-  .status-option input::before {
+  .sheet-table td .status-option input[type="radio"]::before {
     width: 8px;
     height: 8px;
   }
