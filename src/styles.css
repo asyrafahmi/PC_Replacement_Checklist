@@ -180,6 +180,8 @@ textarea {
 
 .sheet-shell {
   padding: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sheet-block {
@@ -200,6 +202,12 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+}
+
+.header-table,
+.sheet-block .sheet-table,
+.verify-table {
+  min-width: 720px;
 }
 
 .sheet-table th,
@@ -308,7 +316,7 @@ textarea {
 .status-options {
   display: flex;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -321,8 +329,8 @@ textarea {
 }
 
 .status-option input {
-  width: 11px;
-  height: 11px;
+  width: 14px;
+  height: 14px;
   margin: 0;
 }
 
@@ -673,12 +681,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .sheet-table {
-    min-width: 880px;
-  }
-
-  .sheet-shell {
-    overflow-x: auto;
+  .header-table,
+  .sheet-block .sheet-table,
+  .verify-table {
+    min-width: 680px;
   }
 }
 
@@ -686,6 +692,56 @@ textarea {
   .page {
     width: min(1180px, calc(100vw - 12px));
     padding-top: 6px;
+  }
+
+  .form-header {
+    padding: 10px 8px;
+  }
+
+  .brand-logo {
+    max-width: 128px;
+    max-height: 42px;
+  }
+
+  .brand-caption {
+    font-size: 10px;
+  }
+
+  .sheet-table th,
+  .sheet-table td {
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  .sheet-table td input,
+  .sheet-table td textarea,
+  .sheet-table td select {
+    font-size: 11px;
+    min-height: 26px;
+  }
+
+  .col-status {
+    width: 180px;
+  }
+
+  .status-options {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .status-option {
+    font-size: 12px;
+  }
+
+  .status-option input {
+    width: 16px;
+    height: 16px;
+  }
+
+  .header-table,
+  .sheet-block .sheet-table,
+  .verify-table {
+    min-width: 620px;
   }
 
   .tabs {

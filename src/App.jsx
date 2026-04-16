@@ -540,6 +540,11 @@ function App() {
       return;
     }
 
+    if (form.old_pc_serial_number && !isValidSerialNumber(form.old_pc_serial_number)) {
+      alert("Old PC serial number must be alphanumeric and more than 6 characters.");
+      return;
+    }
+
     if (form.new_pc_serial_number && !isValidSerialNumber(form.new_pc_serial_number)) {
       alert("PC serial number must be alphanumeric and more than 6 characters.");
       return;
@@ -742,7 +747,17 @@ function App() {
               <tbody>
                 <tr>
                   <th>PC Serial Number</th>
-                  <td><input value={form.old_pc_serial_number} onChange={(e) => updateField("old_pc_serial_number", e.target.value)} /></td>
+                  <td>
+                    <input
+                      value={form.old_pc_serial_number}
+                      onChange={(e) => updateSerialField("old_pc_serial_number", e.target.value)}
+                      placeholder="Serial number"
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      pattern="[A-Za-z0-9]{7,}"
+                      title="Use alphanumeric characters only, at least 7 characters"
+                    />
+                  </td>
                   <td>
                     <div className="serial-stack">
                       <input
