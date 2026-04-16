@@ -565,39 +565,7 @@ textarea {
   color: #1f4e78;
 }
 
-.history-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.history-summary-card {
-  border: 1px solid #b9c9dc;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
-  padding: 10px;
-}
-
-.history-summary-card h3 {
-  margin: 0;
-  font-size: 12px;
-  color: #27456b;
-}
-
-.history-summary-card p {
-  margin: 6px 0 2px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #11243f;
-}
-
-.history-summary-card span {
-  font-size: 11px;
-  color: #4a607d;
-}
-
-.status-pill,
-.source-badge {
+.status-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -633,17 +601,6 @@ textarea {
   border-color: #fca5a5;
 }
 
-.source-badge.live {
-  background: #e2e8f0;
-  color: #334155;
-  border-color: #cbd5e1;
-}
-
-.source-badge.demo {
-  background: #ede9fe;
-  color: #5b21b6;
-  border-color: #c4b5fd;
-}
 
 .export-excel-btn {
   background: linear-gradient(180deg, #e4f5e8 0%, #cbead2 100%);
@@ -999,10 +956,6 @@ textarea {
 
   .history-actions button {
     flex: 1 1 150px;
-  }
-
-  .history-summary-card p {
-    font-size: 18px;
   }
 
   .analysis-chip {

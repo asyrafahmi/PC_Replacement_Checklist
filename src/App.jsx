@@ -21,7 +21,6 @@ import { format } from "date-fns";
 import { hasSupabaseConfig, supabase } from "./lib/supabase";
 import { exportHistoryToExcel } from "./utils/exportExcel";
 import { exportHistoryToPdf } from "./utils/exportPdf";
-import { createDemoHistoryRows } from "./utils/demoHistoryData";
 
 const beforeReplaceItems = [
   { no: 1, name: "Backup user personal files/data", detail: "Desktop, My Documents, Scanner folder, etc" },
@@ -432,7 +431,6 @@ function App() {
   const [exportEndDate, setExportEndDate] = useState("");
   const [analysisWindow, setAnalysisWindow] = useState("all");
   const [form, setForm] = useState(createDefaultForm);
-  const demoRows = useMemo(() => createDemoHistoryRows(50), []);
 
   async function fetchHistory() {
     setHistoryLoading(true);
@@ -455,7 +453,7 @@ function App() {
       }
 
       setDbIssue("");
-      setRows((data || []).map((row) => ({ ...row, __source: "live" })));
+      setRows(data || []);
     } catch (error) {
       if (isMissingTableError(error)) {
         setDbIssue("Supabase table missing. Run supabase-schema.sql in Supabase SQL Editor.");
@@ -670,12 +668,8 @@ function App() {
   }
 
   const analysisRows = useMemo(() => {
-    return [...rows, ...demoRows].sort((a, b) => {
-      const left = getRowExportDate(a)?.getTime() || 0;
-      const right = getRowExportDate(b)?.getTime() || 0;
-      return right - left;
-    });
-  }, [rows, demoRows]);
+    return rows;
+  }, [rows]);
 
   const filteredAnalysisRows = useMemo(
     () => analysisRows.filter((row) => isWithinMonths(row, analysisWindow)),
@@ -787,25 +781,6 @@ function App() {
       return rowDate >= start && rowDate <= end;
     });
   }, [analysisRows, hasExportDateRange, exportDateRangeInvalid, exportStartDate, exportEndDate]);
-
-  const historyStats = useMemo(() => {
-    const total = analysisRows.length;
-    const live = analysisRows.filter((row) => row.__source !== "demo").length;
-    const demo = total - live;
-    const completed = analysisRows.filter((row) => row.status === "Completed").length;
-    const open = analysisRows.filter((row) => row.status !== "Completed").length;
-    const earliest = analysisRows.length ? getRowExportDate(analysisRows[analysisRows.length - 1]) : null;
-    const latest = analysisRows.length ? getRowExportDate(analysisRows[0]) : null;
-
-    return {
-      total,
-      live,
-      demo,
-      completed,
-      open,
-      rangeLabel: earliest && latest ? `${format(earliest, "dd MMM yyyy")} - ${format(latest, "dd MMM yyyy")}` : "-"
-    };
-  }, [analysisRows]);
 
   function handleExportExcel() {
     if (!hasExportDateRange) {
@@ -1100,7 +1075,7 @@ function App() {
           <div className="row-between">
             <div>
               <h2>History</h2>
-              <p className="section-caption">Saved checklist submissions plus 50 demo records (dated Jan 2025 until today).</p>
+              <p className="section-caption">Saved checklist submissions</p>
               <p className="section-caption export-hint">Select date range first. Export uses only rows within that range.</p>
             </div>
             <div className="history-actions">
@@ -1147,29 +1122,6 @@ function App() {
             </p>
           )}
 
-          <div className="history-summary-grid">
-            <article className="history-summary-card">
-              <h3>Total Records</h3>
-              <p>{historyStats.total}</p>
-              <span>{historyStats.live} live + {historyStats.demo} demo</span>
-            </article>
-            <article className="history-summary-card">
-              <h3>Completed</h3>
-              <p>{historyStats.completed}</p>
-              <span>Workflow status completed</span>
-            </article>
-            <article className="history-summary-card">
-              <h3>Open Items</h3>
-              <p>{historyStats.open}</p>
-              <span>Pending, in progress, or on hold</span>
-            </article>
-            <article className="history-summary-card">
-              <h3>Date Coverage</h3>
-              <p>{historyStats.rangeLabel}</p>
-              <span>History and demo timeline</span>
-            </article>
-          </div>
-
           {exportDateRangeInvalid && (
             <p className="warning">Export start date cannot be later than end date.</p>
           )}
@@ -1187,7 +1139,6 @@ function App() {
                     <th>PC/NB No</th>
                     <th>Status</th>
                     <th>Created At</th>
-                    <th>Source</th>
                     <th>Detail</th>
                   </tr>
                 </thead>
@@ -1201,11 +1152,6 @@ function App() {
                       <td><span className={statusClassName(row.status || "Pending")}>{row.status || "Pending"}</span></td>
                       <td>{new Date(row.created_at).toLocaleString()}</td>
                       <td>
-                        <span className={row.__source === "demo" ? "source-badge demo" : "source-badge live"}>
-                          {row.__source === "demo" ? "Demo" : "Live"}
-                        </span>
-                      </td>
-                      <td>
                         <button type="button" className="detail-button" onClick={() => setSelectedDetail(row)}>
                           Detail
                         </button>
@@ -1214,7 +1160,7 @@ function App() {
                   ))}
                   {!analysisRows.length && (
                     <tr>
-                      <td colSpan={8}>No history yet.</td>
+                      <td colSpan={7}>No history yet.</td>
                     </tr>
                   )}
                 </tbody>
