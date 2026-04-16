@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
+  Brush,
   CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -16,6 +21,7 @@ import { format } from "date-fns";
 import { hasSupabaseConfig, supabase } from "./lib/supabase";
 import { exportHistoryToExcel } from "./utils/exportExcel";
 import { exportHistoryToPdf } from "./utils/exportPdf";
+import { getDummyHistoryRows } from "./utils/dummyData";
 
 const beforeReplaceItems = [
   { no: 1, name: "Backup user personal files/data", detail: "Desktop, My Documents, Scanner folder, etc" },
@@ -128,6 +134,30 @@ function getRowExportDate(row) {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed;
+}
+
+function checklistYesRate(entry) {
+  if (!Array.isArray(entry) || !entry.length) return 0;
+  const yes = entry.filter((item) => item.status === "Yes").length;
+  return Math.round((yes / entry.length) * 100);
+}
+
+function toMonthKey(row) {
+  const date = getRowExportDate(row);
+  return date ? format(date, "MMM yyyy") : "Unknown";
+}
+
+function isWithinMonths(row, monthSpan) {
+  if (monthSpan === "all") return true;
+  const date = getRowExportDate(row);
+  if (!date) return false;
+
+  const monthCount = Number(monthSpan);
+  const threshold = new Date();
+  threshold.setMonth(threshold.getMonth() - monthCount);
+  threshold.setHours(0, 0, 0, 0);
+
+  return date >= threshold;
 }
 
 function SignatureDetail({ signature }) {
@@ -395,7 +425,9 @@ function App() {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
+  const [analysisWindow, setAnalysisWindow] = useState("all");
   const [form, setForm] = useState(createDefaultForm);
+  const dummyRows = useMemo(() => getDummyHistoryRows(120), []);
 
   async function fetchHistory() {
     setHistoryLoading(true);
@@ -632,49 +664,106 @@ function App() {
     alert("Checklist saved successfully.");
   }
 
+  const analysisRows = useMemo(() => {
+    if (rows.length >= 40) return rows;
+    const needed = Math.max(70 - rows.length, 0);
+    return [...rows, ...dummyRows.slice(0, needed)];
+  }, [rows, dummyRows]);
+
+  const filteredAnalysisRows = useMemo(
+    () => analysisRows.filter((row) => isWithinMonths(row, analysisWindow)),
+    [analysisRows, analysisWindow]
+  );
+
   const statusData = useMemo(() => {
-    const count = rows.reduce((acc, row) => {
+    const count = filteredAnalysisRows.reduce((acc, row) => {
       const key = row.status || "Pending";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
 
     return Object.entries(count).map(([name, value]) => ({ name, value }));
-  }, [rows]);
+  }, [filteredAnalysisRows]);
 
   const monthlyData = useMemo(() => {
-    const count = rows.reduce((acc, row) => {
-      const month = format(new Date(row.created_at), "MMM yyyy");
+    const count = filteredAnalysisRows.reduce((acc, row) => {
+      const month = toMonthKey(row);
       acc[month] = (acc[month] || 0) + 1;
       return acc;
     }, {});
 
     return Object.entries(count).map(([month, total]) => ({ month, total }));
-  }, [rows]);
+  }, [filteredAnalysisRows]);
+
+  const branchData = useMemo(() => {
+    const count = filteredAnalysisRows.reduce((acc, row) => {
+      const branch = toDisplayValue(row, "branch", "department") || "Unknown";
+      acc[branch] = (acc[branch] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(count)
+      .map(([branch, total]) => ({ branch, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [filteredAnalysisRows]);
+
+  const monthlyStatusData = useMemo(() => {
+    const grouped = filteredAnalysisRows.reduce((acc, row) => {
+      const month = toMonthKey(row);
+      if (!acc[month]) {
+        acc[month] = { month, completed: 0, pending: 0, inProgress: 0, onHold: 0 };
+      }
+
+      const status = row.status || "Pending";
+      if (status === "Completed") acc[month].completed += 1;
+      else if (status === "In Progress") acc[month].inProgress += 1;
+      else if (status === "On Hold") acc[month].onHold += 1;
+      else acc[month].pending += 1;
+
+      return acc;
+    }, {});
+
+    return Object.values(grouped);
+  }, [filteredAnalysisRows]);
 
   const completionData = useMemo(() => {
-    function toRate(entry) {
-      if (!Array.isArray(entry) || !entry.length) return 0;
-      const yes = entry.filter((item) => item.status === "Yes").length;
-      return Math.round((yes / entry.length) * 100);
-    }
-
-    const aggregate = rows.reduce(
+    const aggregate = filteredAnalysisRows.reduce(
       (acc, row) => {
-        acc.before += toRate(row.before_replace);
-        acc.after += toRate(row.after_replace);
+        acc.before += checklistYesRate(row.before_replace);
+        acc.after += checklistYesRate(row.after_replace);
         return acc;
       },
       { before: 0, after: 0 }
     );
 
-    const totalRows = rows.length || 1;
+    const totalRows = filteredAnalysisRows.length || 1;
 
     return [
       { section: "Before Replace", rate: Math.round(aggregate.before / totalRows) },
       { section: "After Replace", rate: Math.round(aggregate.after / totalRows) }
     ];
-  }, [rows]);
+  }, [filteredAnalysisRows]);
+
+  const completionTrendData = useMemo(() => {
+    const grouped = filteredAnalysisRows.reduce((acc, row) => {
+      const month = toMonthKey(row);
+      if (!acc[month]) {
+        acc[month] = { month, total: 0, completionScore: 0 };
+      }
+
+      const before = checklistYesRate(row.before_replace);
+      const after = checklistYesRate(row.after_replace);
+      acc[month].completionScore += Math.round((before + after) / 2);
+      acc[month].total += 1;
+      return acc;
+    }, {});
+
+    return Object.values(grouped).map((entry) => ({
+      month: entry.month,
+      completionRate: Math.round(entry.completionScore / Math.max(entry.total, 1))
+    }));
+  }, [filteredAnalysisRows]);
 
   const hasExportDateRange = Boolean(exportStartDate && exportEndDate);
   const exportDateRangeInvalid = hasExportDateRange && exportStartDate > exportEndDate;
@@ -1083,6 +1172,18 @@ function App() {
       {activeTab === "analysis" && (
         <section className="card charts">
           <h2>Performance Analysis</h2>
+          <div className="analysis-toolbar">
+            <div className="analysis-chip-group">
+              <button type="button" className={analysisWindow === "3" ? "analysis-chip active" : "analysis-chip"} onClick={() => setAnalysisWindow("3")}>Last 3 Months</button>
+              <button type="button" className={analysisWindow === "6" ? "analysis-chip active" : "analysis-chip"} onClick={() => setAnalysisWindow("6")}>Last 6 Months</button>
+              <button type="button" className={analysisWindow === "12" ? "analysis-chip active" : "analysis-chip"} onClick={() => setAnalysisWindow("12")}>Last 12 Months</button>
+              <button type="button" className={analysisWindow === "all" ? "analysis-chip active" : "analysis-chip"} onClick={() => setAnalysisWindow("all")}>All Data</button>
+            </div>
+            <p className="section-caption">
+              Showing {filteredAnalysisRows.length} record(s) for analysis.
+              {rows.length < 40 ? " Demo records are included to enrich trend visibility." : ""}
+            </p>
+          </div>
 
           <div className="chart-grid">
             <article>
@@ -1108,6 +1209,7 @@ function App() {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
+                  <Brush dataKey="month" height={18} stroke="#1c4e87" travellerWidth={8} />
                   <Bar dataKey="total" fill="#2563eb" />
                 </BarChart>
               </ResponsiveContainer>
@@ -1123,6 +1225,63 @@ function App() {
                   <Tooltip />
                   <Bar dataKey="rate" fill="#0f766e" />
                 </BarChart>
+              </ResponsiveContainer>
+            </article>
+
+            <article>
+              <h3>Status Mix by Month</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="completed" stackId="status" fill="#16a34a" name="Completed" />
+                  <Bar dataKey="inProgress" stackId="status" fill="#2563eb" name="In Progress" />
+                  <Bar dataKey="pending" stackId="status" fill="#f59e0b" name="Pending" />
+                  <Bar dataKey="onHold" stackId="status" fill="#dc2626" name="On Hold" />
+                </BarChart>
+              </ResponsiveContainer>
+            </article>
+
+            <article>
+              <h3>Top Branch Workload</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={branchData} layout="vertical" margin={{ left: 28 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="branch" type="category" width={120} />
+                  <Tooltip />
+                  <Bar dataKey="total" fill="#1d4ed8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </article>
+
+            <article>
+              <h3>Completion Trend by Month</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={completionTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="completionRate" stroke="#0f766e" fill="#99f6e4" />
+                  <Line type="monotone" dataKey="completionRate" stroke="#0f766e" strokeWidth={2} dot={{ r: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </article>
+
+            <article>
+              <h3>Monthly Submission Trend</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="total" stroke="#1d4ed8" strokeWidth={2} dot={{ r: 2 }} />
+                </LineChart>
               </ResponsiveContainer>
             </article>
           </div>

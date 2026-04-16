@@ -613,10 +613,37 @@ textarea {
   margin-top: 16px;
 }
 
+.analysis-toolbar {
+  margin-top: 10px;
+}
+
+.analysis-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.analysis-chip {
+  border: 1px solid #9bb3cf;
+  background: #eef3fb;
+  color: #1a3b61;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.analysis-chip.active {
+  border-color: #1d4e86;
+  background: #d8e8fb;
+  color: #0f2f52;
+}
+
 .chart-grid article {
   border: 1px solid var(--soft-line);
   padding: 12px;
   background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .chart-grid h3,
@@ -892,6 +919,11 @@ textarea {
 
   .history-actions button {
     flex: 1 1 150px;
+  }
+
+  .analysis-chip {
+    flex: 1 1 calc(50% - 8px);
+    text-align: center;
   }
 
   .detail-modal {
